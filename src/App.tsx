@@ -53,7 +53,6 @@ export default function App() {
 
       for (const variantName of variantNames) {
         // console.log({ thing: row[variantName], totalForDate });
-        // NEXT: Fix finding totalForDate
         scaledValuesByVariant[variantName] = row[variantName] * totalForDate!;
       }
       return {
@@ -69,39 +68,91 @@ export default function App() {
   );
 
   // TODO: Refactor to make this just be a map by variant name instead
-  const [colors, setColors] = useState(() =>
-    orderedVariantNames.map(() => {
-      const hexString = Math.floor(Math.random() * (0xffffff + 1)).toString(16);
-      return "#" + R.repeat("0", 6 - hexString.length) + hexString;
-    })
+  const [colors, setColors] = useState(
+    Object.fromEntries(
+      R.zip(
+        variantNames,
+        orderedVariantNames.map(() => {
+          const hexString = Math.floor(Math.random() * (0xffffff + 1)).toString(
+            16
+          );
+          return "#" + R.repeat("0", 6 - hexString.length) + hexString;
+        })
+      )
+    )
   );
 
   function shuffleVariantOrder() {
-    const colorVariantPairs = shuffle(R.zip(colors, orderedVariantNames));
-    const newColors = colorVariantPairs.map(([color, variant]) => color);
-    const newVariants = colorVariantPairs.map(([color, variant]) => variant);
-    setColors(newColors);
+    // const colorVariantPairs = shuffle(R.zip(colors, orderedVariantNames));
+    // const newColors = colorVariantPairs.map(([color, variant]) => color);
+    // const newVariants = colorVariantPairs.map(([color, variant]) => variant);
+    // setColors(newColors);
+    // setOrderedVariantNames(newVariants);
+    setIsAnimationActive(false);
+    const newVariants = shuffle(orderedVariantNames);
     setOrderedVariantNames(newVariants);
+    setTimeout(() => setIsAnimationActive(true), 0);
   }
 
   const [showAbsolute, setShowAbsolute] = useState(true);
 
+  const moveVariantToBottom = (variantName) => {
+    setOrderedVariantNames([
+      variantName,
+      ...orderedVariantNames.filter((name) => name !== variantName),
+    ]);
+  };
+
+  const [isAnimationActive, setIsAnimationActive] = useState(true);
+
+  const handleVariantClick: any = (datum, event) => {
+    setIsAnimationActive(false);
+    moveVariantToBottom(datum.name);
+    setTimeout(() => setIsAnimationActive(true), 0);
+  };
+
+  function formatVariantName(name) {
+    return name.replace(/_/g, ".");
+  }
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    console.log({ active, payload, label });
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ backgroundColor: "black" }}>
+          {payload
+            .filter(({ value }) => value > 0)
+            .map(({ name, stroke, dataKey, value }) => (
+              <div>
+                <span style={{ color: stroke }}>
+                  {formatVariantName(dataKey)}: {value.toFixed(0)}
+                </span>
+              </div>
+            ))}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div style={{ width: "90vw", height: "90vh" }}>
-      {/* <button onClick={shuffleVariantOrder}>Shuffle variant order</button> */}
-      <label>
+      <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
+      {/* <label>
         <input
           type="checkbox"
+          checked={showAbsolute}
           onChange={(e) => setShowAbsolute(e.target.checked)}
         />{" "}
         Show absolute numbers
-      </label>
-      <ResponsiveContainer width="100%" height="100%">
+      </label> */}
+      <ResponsiveContainer width="100%" height="50%">
         <AreaChart
+          syncId={1}
           width={500}
           height={300}
-          // data={proportionsData}
-          data={showAbsolute ? totalsByVariantData : proportionsData}
+          data={totalsByVariantData}
           margin={{
             top: 5,
             right: 30,
@@ -117,17 +168,62 @@ export default function App() {
             }
           />
           <YAxis />
-          <Tooltip />
+          <Tooltip content={CustomTooltip} position={{ x: 0, y: 0 }} />
           <Legend />
           {orderedVariantNames.map((variantName, i) => (
             <Area
               key={variantName}
               type="step"
               dataKey={variantName}
-              stroke={colors[i]}
-              fill={colors[i]}
+              name={variantName}
+              // stroke={"transparent"}
+              stroke={colors[variantName]}
+              fill={colors[variantName]}
+              // fill={"transparent"}
               activeDot={{ r: 8 }}
               stackId={1}
+              onClick={handleVariantClick}
+              isAnimationActive={isAnimationActive}
+            />
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
+      <ResponsiveContainer width="100%" height="50%">
+        <AreaChart
+          syncId={1}
+          width={500}
+          height={300}
+          data={proportionsData}
+          margin={{
+            top: 5,
+            right: 30,
+            left: 20,
+            bottom: 5,
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            tickFormatter={(date: Date) =>
+              date.toISOString().replace(/T.*/, "")
+            }
+          />
+          <YAxis />
+          <Tooltip content={CustomTooltip} position={{ x: 0, y: 0 }} />
+          <Legend />
+          {orderedVariantNames.map((variantName, i) => (
+            <Area
+              key={variantName}
+              type="step"
+              dataKey={variantName}
+              name={variantName}
+              // stroke={"transparent"}
+              stroke={colors[variantName]}
+              fill={colors[variantName]}
+              activeDot={{ r: 8 }}
+              stackId={1}
+              onClick={handleVariantClick}
+              isAnimationActive={isAnimationActive}
             />
           ))}
         </AreaChart>
@@ -157,7 +253,7 @@ function findSortOrder(values: TotalByVariantWithDate[]) {
     rangeByVariant[variantName] = max - min;
   }
   return R.sortBy(
-    (variantName: VariantName) => rangeByVariant[variantName],
+    (variantName: VariantName) => -rangeByVariant[variantName],
     Object.keys(R.omit(["date"], values[0])) as VariantName[]
   );
 }
