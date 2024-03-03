@@ -115,20 +115,33 @@ export default function App() {
     return name.replace(/_/g, ".");
   }
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+    unit,
+  }: {
+    active?: any;
+    payload?: any;
+    label?: any;
+    unit?: any;
+  }) => {
     console.log({ active, payload, label });
     if (active && payload && payload.length) {
       return (
         <div style={{ backgroundColor: "black" }}>
           {payload
             .filter(({ value }) => value > 0)
-            .map(({ name, stroke, dataKey, value }) => (
-              <div>
-                <span style={{ color: stroke }}>
-                  {formatVariantName(dataKey)}: {value.toFixed(0)}
-                </span>
-              </div>
-            ))}
+            .map(({ name, stroke, dataKey, value }) => {
+              return (
+                <div>
+                  <span style={{ color: stroke }}>
+                    {formatVariantName(dataKey)}: {value.toFixed(0)}
+                    {unit}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       );
     }
@@ -168,7 +181,10 @@ export default function App() {
             }
           />
           <YAxis />
-          <Tooltip content={CustomTooltip} position={{ x: 0, y: 0 }} />
+          <Tooltip
+            content={(args) => <CustomTooltip {...args} />}
+            position={{ x: 0, y: 0 }}
+          />
           <Legend />
           {orderedVariantNames.map((variantName, i) => (
             <Area
@@ -209,7 +225,10 @@ export default function App() {
             }
           />
           <YAxis />
-          <Tooltip content={CustomTooltip} position={{ x: 0, y: 0 }} />
+          <Tooltip
+            content={(args) => <CustomTooltip {...args} unit={"%"} />}
+            position={{ x: 0, y: 0 }}
+          />
           <Legend />
           {orderedVariantNames.map((variantName, i) => (
             <Area
