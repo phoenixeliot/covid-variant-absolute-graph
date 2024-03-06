@@ -128,8 +128,10 @@ export default function App() {
   }) => {
     console.log({ active, payload, label });
     if (active && payload && payload.length) {
+      const date = payload[0].payload.date;
       return (
         <div style={{ backgroundColor: "black" }}>
+          <span>{date.toISOString().replace(/T.*/, "")}</span>
           {payload
             .filter(({ value }) => value > 0)
             .map(({ name, stroke, dataKey, value }) => {
