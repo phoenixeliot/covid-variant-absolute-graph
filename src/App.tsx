@@ -168,9 +168,28 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "90vw", height: "90vh" }}>
-      <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
-      <button onClick={randomizeColors}>Randomize colors</button>
+    <div
+      style={{
+        // width: "90%",
+        height: "90vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div>
+        Original data:{" "}
+        <a href="https://www.cdc.gov/nwss/rv/COVID19-variants.html">
+          Variants in Wastewater (percents)
+        </a>
+        ,{" "}
+        <a href="https://www.cdc.gov/nwss/rv/COVID19-variants.html">
+          National and Regional Trends (totals)
+        </a>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
+        <button onClick={randomizeColors}>Randomize colors</button>
+      </div>
       {/* <label>
         <input
           type="checkbox"
@@ -204,7 +223,6 @@ export default function App() {
             content={(args) => <CustomTooltip {...args} />}
             position={{ x: 0, y: 0 }}
           />
-          <Legend />
           {orderedVariantNames.map((variantName, i) => (
             <Area
               key={variantName}
@@ -243,7 +261,7 @@ export default function App() {
               date.toISOString().replace(/T.*/, "")
             }
           />
-          <YAxis />
+          <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} />
           <Tooltip
             content={(args) => <CustomTooltip {...args} unit={"%"} />}
             position={{ x: 0, y: 0 }}
