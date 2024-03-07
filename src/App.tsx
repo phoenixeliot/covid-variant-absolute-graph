@@ -170,8 +170,7 @@ export default function App() {
   return (
     <div
       style={{
-        // width: "90%",
-        height: "90vh",
+        height: "95vh",
         display: "flex",
         flexDirection: "column",
       }}
@@ -198,92 +197,105 @@ export default function App() {
         />{" "}
         Show absolute numbers
       </label> */}
-      <ResponsiveContainer width="100%" height="50%">
-        <AreaChart
-          syncId={1}
-          width={500}
-          height={300}
-          data={totalsByVariantData}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(date: Date) =>
-              date.toISOString().replace(/T.*/, "")
-            }
-          />
-          <YAxis />
-          <Tooltip
-            content={(args) => <CustomTooltip {...args} />}
-            position={{ x: 0, y: 0 }}
-          />
-          {orderedVariantNames.map((variantName, i) => (
-            <Area
-              key={variantName}
-              type="step"
-              dataKey={variantName}
-              name={variantName}
-              // stroke={"transparent"}
-              stroke={colors[variantName]}
-              fill={colors[variantName]}
-              // fill={"transparent"}
-              activeDot={{ r: 8 }}
-              stackId={1}
-              onClick={handleVariantClick}
-              isAnimationActive={isAnimationActive}
-            />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
-      <ResponsiveContainer width="100%" height="50%">
-        <AreaChart
-          syncId={1}
-          width={500}
-          height={300}
-          data={proportionsData}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(date: Date) =>
-              date.toISOString().replace(/T.*/, "")
-            }
-          />
-          <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} />
-          <Tooltip
-            content={(args) => <CustomTooltip {...args} unit={"%"} />}
-            position={{ x: 0, y: 0 }}
-          />
-          <Legend />
-          {orderedVariantNames.map((variantName, i) => (
-            <Area
-              key={variantName}
-              type="step"
-              dataKey={variantName}
-              name={variantName}
-              // stroke={"transparent"}
-              stroke={colors[variantName]}
-              fill={colors[variantName]}
-              activeDot={{ r: 8 }}
-              stackId={1}
-              onClick={handleVariantClick}
-              isAnimationActive={isAnimationActive}
-            />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
+      <div
+        style={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "hidden",
+        }}
+      >
+        <div style={{ overflow: "hidden", flexBasis: "50%" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              syncId={1}
+              width={500}
+              height={300}
+              data={totalsByVariantData}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(date: Date) =>
+                  date.toISOString().replace(/T.*/, "")
+                }
+              />
+              <YAxis />
+              <Tooltip
+                content={(args) => <CustomTooltip {...args} />}
+                position={{ x: 0, y: 0 }}
+              />
+              {orderedVariantNames.map((variantName, i) => (
+                <Area
+                  key={variantName}
+                  type="step"
+                  dataKey={variantName}
+                  name={variantName}
+                  // stroke={"transparent"}
+                  stroke={colors[variantName]}
+                  fill={colors[variantName]}
+                  // fill={"transparent"}
+                  activeDot={{ r: 8 }}
+                  stackId={1}
+                  onClick={handleVariantClick}
+                  isAnimationActive={isAnimationActive}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ overflow: "hidden", flexBasis: "50%" }}>
+          <ResponsiveContainer>
+            <AreaChart
+              syncId={1}
+              width={500}
+              height={300}
+              data={proportionsData}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(date: Date) =>
+                  date.toISOString().replace(/T.*/, "")
+                }
+              />
+              <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} />
+              <Tooltip
+                content={(args) => <CustomTooltip {...args} unit={"%"} />}
+                position={{ x: 0, y: 0 }}
+              />
+              <Legend />
+              {orderedVariantNames.map((variantName, i) => (
+                <Area
+                  key={variantName}
+                  type="step"
+                  dataKey={variantName}
+                  name={variantName}
+                  // stroke={"transparent"}
+                  stroke={colors[variantName]}
+                  fill={colors[variantName]}
+                  activeDot={{ r: 8 }}
+                  stackId={1}
+                  onClick={handleVariantClick}
+                  isAnimationActive={isAnimationActive}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
       {(!regionalTotalsLoaded || !variantProportionsLoaded) && (
         <div>Some live data could not be loaded, using fallback data files</div>
       )}
