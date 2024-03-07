@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import * as R from "ramda";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,12 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import "./App.css";
-import variantProportionsData from "./data/NWSSVariantBarChart.json";
-import regionalTotalsData from "./data/NWSSRegionalLevel.json";
-import * as R from "ramda";
-import { useState } from "react";
+import hardCodedRegionalTotalsData from "./data/NWSSRegionalLevel.json";
+import hardCodedVariantProportionsData from "./data/NWSSVariantBarChart.json";
+import { useColorMap } from "./colorList";
 type VariantName = Exclude<
-  keyof (typeof variantProportionsData)[0],
+  keyof (typeof hardCodedVariantProportionsData)[0],
   "week_end"
 >; // includes week_end because lazy
 type TotalWithDate = {
@@ -22,11 +24,34 @@ type TotalWithDate = {
   total: number;
 };
 type TotalByVariantWithDate = { date: Date } & Record<VariantName, number>;
-const variantNames = Object.keys(variantProportionsData[0]).filter(
+const variantNames = Object.keys(hardCodedVariantProportionsData[0]).filter(
   (key) => key != "week_end"
 ) as VariantName[];
 
 export default function App() {
+  const {
+    data: variantProportionsData = [], // hardCodedVariantProportionsData,
+    isSuccess: variantProportionsLoaded,
+  } = useQuery<typeof hardCodedVariantProportionsData>({
+    queryKey: ["variant-proportions"],
+    queryFn: () =>
+      fetch(
+        "https://www.cdc.gov/wcms/vizdata/NCEZID_DIDRI/NWSSVariantBarChart.json"
+      ).then((res) => res.json()),
+  });
+  const {
+    data: regionalTotalsData = [], //hardCodedRegionalTotalsData,
+    isSuccess: regionalTotalsLoaded,
+  } = useQuery<typeof hardCodedRegionalTotalsData>({
+    queryKey: ["regional-totals"],
+    queryFn: () =>
+      fetch(
+        "https://www.cdc.gov/wcms/vizdata/NCEZID_DIDRI/NWSSRegionalLevel.json"
+      ).then((res) => res.json()),
+  });
+
+  console.log({ variantProportionsData, regionalTotalsData });
+
   const proportionsData = variantProportionsData.map((row) => ({
     ...R.mapObjIndexed((v) => (v === null ? 0 : Number(v)), row),
     date: new Date(row.week_end),
@@ -42,45 +67,37 @@ export default function App() {
       Number(row.West),
   }));
 
-  const totalsByVariantData: TotalByVariantWithDate[] = proportionsData.map(
-    (row) => {
-      const scaledValuesByVariant = {} as Record<VariantName, number>;
+  const totalsByVariantData: TotalByVariantWithDate[] = useMemo(
+    () =>
+      proportionsData.map((row) => {
+        const scaledValuesByVariant = {} as Record<VariantName, number>;
 
-      const totalForDate = totalsData.find(
-        ({ date }) => date.getTime() == row.date.getTime()
-      )?.total;
-      // console.log(totalsData, row.date);
+        const totalForDate = totalsData.find(
+          ({ date }) => date.getTime() == row.date.getTime()
+        )?.total;
+        // console.log(totalsData, row.date);
 
-      for (const variantName of variantNames) {
-        // console.log({ thing: row[variantName], totalForDate });
-        scaledValuesByVariant[variantName] = row[variantName] * totalForDate!;
-      }
-      return {
-        date: row.date,
-        ...scaledValuesByVariant,
-      };
+        for (const variantName of variantNames) {
+          // console.log({ thing: row[variantName], totalForDate });
+          scaledValuesByVariant[variantName] = row[variantName] * totalForDate!;
+        }
+        return {
+          date: row.date,
+          ...scaledValuesByVariant,
+        };
+      }),
+    [proportionsData, totalsData]
+  );
+
+  const [orderedVariantNames, setOrderedVariantNames] = useState([]);
+  useEffect(() => {
+    if (!orderedVariantNames.length) {
+      setOrderedVariantNames(findSortOrder(totalsByVariantData));
     }
-  );
-
-  const [orderedVariantNames, setOrderedVariantNames] = useState(
-    // variantNames
-    findSortOrder(totalsByVariantData)
-  );
+  }, [orderedVariantNames, totalsByVariantData]);
 
   // TODO: Refactor to make this just be a map by variant name instead
-  const [colors, setColors] = useState(
-    Object.fromEntries(
-      R.zip(
-        variantNames,
-        orderedVariantNames.map(() => {
-          const hexString = Math.floor(Math.random() * (0xffffff + 1)).toString(
-            16
-          );
-          return "#" + R.repeat("0", 6 - hexString.length) + hexString;
-        })
-      )
-    )
-  );
+  const { colorMap: colors, randomizeColors } = useColorMap(variantNames);
 
   function shuffleVariantOrder() {
     // const colorVariantPairs = shuffle(R.zip(colors, orderedVariantNames));
@@ -126,7 +143,6 @@ export default function App() {
     label?: any;
     unit?: any;
   }) => {
-    console.log({ active, payload, label });
     if (active && payload && payload.length) {
       const date = payload[0].payload.date;
       return (
@@ -154,6 +170,7 @@ export default function App() {
   return (
     <div style={{ width: "90vw", height: "90vh" }}>
       <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
+      <button onClick={randomizeColors}>Randomize colors</button>
       {/* <label>
         <input
           type="checkbox"
@@ -249,6 +266,9 @@ export default function App() {
           ))}
         </AreaChart>
       </ResponsiveContainer>
+      {(!regionalTotalsLoaded || !variantProportionsLoaded) && (
+        <div>Some live data could not be loaded, using fallback data files</div>
+      )}
     </div>
   );
 }
