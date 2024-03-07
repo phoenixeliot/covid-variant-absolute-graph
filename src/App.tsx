@@ -276,7 +276,9 @@ export default function App() {
                 content={(args) => <CustomTooltip {...args} unit={"%"} />}
                 position={{ x: 0, y: 0 }}
               />
-              <Legend />
+              <Legend
+                formatter={(value, entry, index) => value.replace(/_/g, ".")}
+              />
               {orderedVariantNames.map((variantName, i) => (
                 <Area
                   key={variantName}
