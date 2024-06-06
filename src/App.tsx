@@ -23,12 +23,11 @@ type TotalWithDate = {
   date: Date;
   total: number;
 };
-type TotalByVariantWithDate = { date: Date } & Record<VariantName, number>;
-const variantNames = Object.keys(hardCodedVariantProportionsData[0]).filter(
-  (key) => key != "week_end"
-) as VariantName[];
+type TotalByVariantWithDate = { [key: string]: number | Date };
 
 export default function App() {
+  const [showSplit, setShowSplit] = useState(false);
+
   const {
     data: variantProportionsData = [], // hardCodedVariantProportionsData,
     isSuccess: variantProportionsLoaded,
@@ -50,6 +49,14 @@ export default function App() {
       ).then((res) => res.json()),
   });
 
+  const variantNames = useMemo(
+    () =>
+      Object.keys(
+        variantProportionsData?.[0] || hardCodedVariantProportionsData[0]
+      ).filter((key) => key != "week_end") as VariantName[],
+    [variantProportionsData]
+  );
+
   console.log({ variantProportionsData, regionalTotalsData });
 
   const proportionsData = variantProportionsData.map((row) => ({
@@ -60,11 +67,12 @@ export default function App() {
   const totalsData: TotalWithDate[] = regionalTotalsData.map((row) => ({
     date: new Date(row.date),
     total:
-      Number(row.Midwest) +
-      Number(row.National) +
-      Number(row.Northeast) +
-      Number(row.South) +
-      Number(row.West),
+      (Number(row.Midwest) +
+        Number(row.National) +
+        Number(row.Northeast) +
+        Number(row.South) +
+        Number(row.West)) /
+      5,
   }));
 
   const totalsByVariantData: TotalByVariantWithDate[] = useMemo(
@@ -79,22 +87,23 @@ export default function App() {
 
         for (const variantName of variantNames) {
           // console.log({ thing: row[variantName], totalForDate });
-          scaledValuesByVariant[variantName] = row[variantName] * totalForDate!;
+          scaledValuesByVariant[variantName] =
+            (row[variantName] * totalForDate!) / 100;
         }
         return {
           date: row.date,
           ...scaledValuesByVariant,
         };
       }),
-    [proportionsData, totalsData]
+    [proportionsData, totalsData, variantNames]
   );
 
   const [orderedVariantNames, setOrderedVariantNames] = useState([]);
   useEffect(() => {
     if (!orderedVariantNames.length) {
-      setOrderedVariantNames(findSortOrder(totalsByVariantData));
+      setOrderedVariantNames(findSortOrder(totalsByVariantData, variantNames));
     }
-  }, [orderedVariantNames, totalsByVariantData]);
+  }, [orderedVariantNames, totalsByVariantData, variantNames]);
 
   // TODO: Refactor to make this just be a map by variant name instead
   const { colorMap: colors, randomizeColors } = useColorMap(variantNames);
@@ -125,7 +134,7 @@ export default function App() {
   const handleVariantClick: any = (datum, event) => {
     setIsAnimationActive(false);
     moveVariantToBottom(datum.name);
-    setTimeout(() => setIsAnimationActive(true), 0);
+    setTimeout(() => setIsAnimationActive(true), 10);
   };
 
   function formatVariantName(name) {
@@ -167,6 +176,32 @@ export default function App() {
     return null;
   };
 
+  const maxByVariant = useMemo(() => {
+    const maxByVariant: Record<string, number> = {};
+    variantNames.forEach((variantName) => {
+      const values = totalsByVariantData.map(
+        (row) => row[variantName]
+      ) as number[];
+      maxByVariant[variantName] = Math.max(...values);
+    });
+    return maxByVariant;
+  }, [totalsByVariantData, variantNames]);
+
+  const totalMax = useMemo(
+    () => Object.values(maxByVariant).reduce(R.add),
+    [maxByVariant]
+  );
+  const highestMax = useMemo(
+    () => Math.max(...totalsData.map(({ total }) => total)),
+    [totalsData]
+  );
+  console.log({
+    maxByVariant,
+    totalMax,
+    highestMax,
+    totalsByDay: totalsData.map(({ total }) => total),
+  });
+
   return (
     <div
       style={{
@@ -186,6 +221,17 @@ export default function App() {
         </a>
       </div>
       <div style={{ display: "flex", justifyContent: "center" }}>
+        <button
+          onClick={() => {
+            setIsAnimationActive(false);
+            setShowSplit(!showSplit);
+            setTimeout(() => {
+              setIsAnimationActive(true);
+            }, 10);
+          }}
+        >
+          Toggle split (experimental)
+        </button>
         <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
         <button onClick={randomizeColors}>Randomize colors</button>
       </div>
@@ -205,52 +251,106 @@ export default function App() {
           overflowY: "hidden",
         }}
       >
-        <div style={{ overflow: "hidden", flexBasis: "50%" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              syncId={1}
-              width={500}
-              height={300}
-              data={totalsByVariantData}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(date: Date) =>
-                  date.toISOString().replace(/T.*/, "")
-                }
-              />
-              <YAxis />
-              <Tooltip
-                content={(args) => <CustomTooltip {...args} />}
-                position={{ x: 0, y: 0 }}
-              />
-              {orderedVariantNames.map((variantName, i) => (
-                <Area
-                  key={variantName}
-                  type="step"
-                  dataKey={variantName}
-                  name={variantName}
-                  // stroke={"transparent"}
-                  stroke={colors[variantName]}
-                  fill={colors[variantName]}
-                  // fill={"transparent"}
-                  activeDot={{ r: 8 }}
-                  stackId={1}
-                  onClick={handleVariantClick}
-                  isAnimationActive={isAnimationActive}
+        {showSplit ? (
+          <div
+            style={{
+              overflow: "hidden",
+              flexBasis: "70%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {[...orderedVariantNames].reverse().map((variantName) => (
+              <ResponsiveContainer
+                width="100%"
+                height={`${(maxByVariant[variantName] / totalMax) * 100}%`}
+                style={{ flexShrink: 0, flexGrow: 0 }}
+              >
+                <AreaChart
+                  syncId={1}
+                  width={500}
+                  height={300}
+                  data={totalsByVariantData}
+                  margin={{
+                    top: 0,
+                    right: 30,
+                    left: 20,
+                    bottom: 0,
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <YAxis ticks={[]} tickFormatter={() => ""} />
+                  <Tooltip content={() => null} position={{ x: 0, y: 0 }} />
+                  <Area
+                    key={variantName}
+                    type="step"
+                    dataKey={variantName}
+                    name={variantName}
+                    // stroke={"transparent"}
+                    stroke={colors[variantName]}
+                    fill={colors[variantName]}
+                    // fill={"transparent"}
+                    activeDot={{ r: 8 }}
+                    stackId={1}
+                    onClick={handleVariantClick}
+                    isAnimationActive={isAnimationActive}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{ overflow: "hidden", flexBasis: showSplit ? "70%" : "50%" }}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                syncId={1}
+                width={500}
+                height={300}
+                data={totalsByVariantData}
+                margin={{
+                  top: 5,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(date: Date) =>
+                    date.toISOString().replace(/T.*/, "")
+                  }
                 />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ overflow: "hidden", flexBasis: "50%" }}>
+                <YAxis domain={[0, highestMax]} />
+                <Tooltip
+                  content={(args) => <CustomTooltip {...args} />}
+                  position={{ x: 0, y: 0 }}
+                />
+                {orderedVariantNames.map((variantName, i) => (
+                  <Area
+                    key={variantName}
+                    type="step"
+                    dataKey={variantName}
+                    name={variantName}
+                    // stroke={"transparent"}
+                    stroke={colors[variantName]}
+                    fill={colors[variantName]}
+                    // fill={"transparent"}
+                    activeDot={{ r: 8 }}
+                    stackId={1}
+                    onClick={handleVariantClick}
+                    isAnimationActive={isAnimationActive}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <div
+          style={{ overflow: "hidden", flexBasis: showSplit ? "30%" : "50%" }}
+        >
           <ResponsiveContainer>
             <AreaChart
               syncId={1}
@@ -314,14 +414,17 @@ function shuffle<T>(array: T[]) {
   return newArray;
 }
 
-function findSortOrder(values: TotalByVariantWithDate[]) {
+function findSortOrder(
+  values: TotalByVariantWithDate[],
+  variantNames: string[]
+) {
   const rangeByVariant = {} as Record<VariantName, number>;
   for (const variantName of variantNames) {
     let min = Infinity;
     let max = 0;
     for (const row of values) {
-      min = Math.min(min, row[variantName]);
-      max = Math.max(max, row[variantName]);
+      min = Math.min(min, row[variantName] as number);
+      max = Math.max(max, row[variantName] as number);
     }
     rangeByVariant[variantName] = max - min;
   }
