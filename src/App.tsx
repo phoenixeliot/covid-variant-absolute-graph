@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import * as R from "ramda";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -94,19 +94,10 @@ export default function App() {
     [proportionsData, totalsData, variantNames]
   );
 
-  const [orderedVariantNames, setOrderedVariantNames] = useState([]);
-  useEffect(() => {
-    if (
-      !orderedVariantNames.length &&
-      variantNames.length &&
-      totalsByVariantData.length
-    ) {
-      setOrderedVariantNames(findSortOrder(totalsByVariantData, variantNames));
-    }
-  }, [orderedVariantNames, totalsByVariantData, variantNames]);
-
   // TODO: Refactor to make this just be a map by variant name instead
   const { colorMap: colors, randomizeColors } = useColorMap(variantNames);
+
+  const [orderedVariantNames, setOrderedVariantNames] = useState([]);
 
   function shuffleVariantOrder() {
     setIsAnimationActive(false);
@@ -118,7 +109,32 @@ export default function App() {
     setTimeout(() => setIsAnimationActive(true), 0);
   }
 
-  const [showAbsolute, setShowAbsolute] = useState(true);
+  const setSortByAllTimeMax = useCallback(() => {
+    setIsAnimationActive(false);
+    setOrderedVariantNames(sortByAllTimeMax(totalsByVariantData, variantNames));
+  }, [totalsByVariantData, variantNames]);
+
+  const setSortByCurrentHighest = useCallback(() => {
+    setIsAnimationActive(false);
+    const newVariants = sortByCurrentHighest(totalsByVariantData, variantNames);
+    setOrderedVariantNames(newVariants);
+    setTimeout(() => setIsAnimationActive(true), 0);
+  }, [totalsByVariantData, variantNames]);
+
+  useEffect(() => {
+    if (
+      !orderedVariantNames.length &&
+      variantNames.length &&
+      totalsByVariantData.length
+    ) {
+      setSortByCurrentHighest();
+    }
+  }, [
+    orderedVariantNames.length,
+    setSortByCurrentHighest,
+    totalsByVariantData.length,
+    variantNames.length,
+  ]);
 
   const moveVariantToBottom = (variantName) => {
     setOrderedVariantNames([
@@ -253,6 +269,10 @@ export default function App() {
           Toggle split (experimental)
         </button>
         <button onClick={shuffleVariantOrder}>Shuffle variant order</button>
+        <button onClick={setSortByAllTimeMax}>Sort by all time highest</button>
+        <button onClick={setSortByCurrentHighest}>
+          Sort by current highest
+        </button>
         <button onClick={randomizeColors}>Randomize colors</button>
       </div>
       {/* <label>
@@ -434,27 +454,44 @@ function shuffle<T>(array: T[]) {
   return newArray;
 }
 
-function findSortOrder(
+function sortByAllTimeMax(
   values: TotalByVariantWithDate[],
   variantNames: string[]
 ) {
-  const rangeByVariant = {} as Record<VariantName, number>;
+  const maxByVariant = {} as Record<VariantName, number>;
   for (const variantName of variantNames) {
     if (variantName === "Other") continue;
-    let min = Infinity;
     let max = 0;
     for (const row of values) {
-      min = Math.min(min, row[variantName] as number);
       max = Math.max(max, row[variantName] as number);
     }
-    rangeByVariant[variantName] = max - min;
+    maxByVariant[variantName] = max;
   }
   return R.tap(console.log, [
     ...R.sortBy(
-      (variantName: VariantName) => -rangeByVariant[variantName],
+      (variantName: VariantName) => -maxByVariant[variantName],
       Object.keys(R.omit(["date", "Other"], values[0])) as VariantName[]
     ),
     // Always put "Other" at the top of the graph
     "Other",
   ]);
+}
+
+function sortByCurrentHighest(
+  proportionsData: TotalByVariantWithDate[],
+  variantNames: string[]
+) {
+  const maxRow = R.reduce(
+    R.maxBy((row: (typeof proportionsData)[0]) => (row.date as Date).getTime()),
+    proportionsData[0],
+    proportionsData
+  );
+  const newVariants = [
+    ...R.sortBy(
+      (variantName: keyof typeof maxRow) => -maxRow[variantName] || 0,
+      R.without(["Other"], variantNames)
+    ),
+    "Other", // Always put "Other" at the top
+  ];
+  return newVariants;
 }
