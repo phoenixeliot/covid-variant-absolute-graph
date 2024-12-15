@@ -216,7 +216,7 @@ export default function App() {
           Variants in Wastewater (percents)
         </a>
         ,{" "}
-        <a href="https://www.cdc.gov/nwss/rv/COVID19-variants.html">
+        <a href="https://www.cdc.gov/nwss/rv/COVID19-nationaltrend.html">
           National and Regional Trends (totals)
         </a>
       </div>
