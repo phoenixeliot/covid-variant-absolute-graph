@@ -158,7 +158,7 @@ export default function App() {
             .filter(({ value }) => value > 0)
             .map(({ name, stroke, dataKey, value }) => {
               return (
-                <div>
+                <div key={name}>
                   <span style={{ color: stroke }}>
                     {formatVariantName(dataKey)}: {value.toFixed(0)}
                     {unit}
@@ -184,13 +184,29 @@ export default function App() {
     return maxByVariant;
   }, [totalsByVariantData, variantNames]);
 
+  const earliestDateInBothDatasets = useMemo(
+    () =>
+      new Date(
+        Math.max(
+          Math.min(...proportionsData.map(({ date }) => date.getTime())),
+          Math.min(...totalsData.map(({ date }) => date.getTime()))
+        )
+      ),
+    [proportionsData, totalsData]
+  );
+
   const totalMax = useMemo(
     () => Object.values(maxByVariant).reduce(R.add),
     [maxByVariant]
   );
   const highestMax = useMemo(
-    () => Math.max(...totalsData.map(({ total }) => total)),
-    [totalsData]
+    () =>
+      Math.max(
+        ...totalsData
+          .filter((row) => row.date > earliestDateInBothDatasets) // Filter for dates that will be shown in the final graph
+          .map(({ total }) => total)
+      ),
+    [earliestDateInBothDatasets, totalsData]
   );
   console.log({
     maxByVariant,
@@ -320,7 +336,7 @@ export default function App() {
                     date.toISOString().replace(/T.*/, "")
                   }
                 />
-                <YAxis domain={[0, highestMax]} />
+                <YAxis domain={[0, Math.ceil(highestMax)]} />
                 <Tooltip
                   content={(args) => <CustomTooltip {...args} />}
                   position={{ x: 0, y: 0 }}
