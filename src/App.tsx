@@ -151,8 +151,13 @@ export default function App() {
     if (active && payload && payload.length) {
       const date = payload[0].payload.date;
       return (
-        <div style={{ backgroundColor: "white", border: "thin solid black" }}>
-          <span>{date.toISOString().replace(/T.*/, "")}</span>
+        <div
+          style={{
+            backgroundColor: "var(--bg-color)",
+            border: "thin solid var(--border-color)",
+          }}
+        >
+          <div>{date.toISOString().replace(/T.*/, "")}</div>
           {[...payload]
             .reverse()
             .filter(({ value }) => value > 0)
