@@ -64,16 +64,12 @@ export default function App() {
     date: new Date(row.week_end),
   }));
 
-  const totalsData: TotalWithDate[] = regionalTotalsData.map((row) => ({
-    date: new Date(row.date),
-    total:
-      (Number(row.Midwest) +
-        Number(row.National) +
-        Number(row.Northeast) +
-        Number(row.South) +
-        Number(row.West)) /
-      5,
-  }));
+  const totalsData: TotalWithDate[] = regionalTotalsData.map((row) => {
+    return {
+      date: new Date(row.Week_Ending_Date),
+      total: Number(row.National_WVAL),
+    };
+  });
 
   const totalsByVariantData: TotalByVariantWithDate[] = useMemo(
     () =>
