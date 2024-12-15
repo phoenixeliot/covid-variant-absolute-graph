@@ -96,7 +96,11 @@ export default function App() {
 
   const [orderedVariantNames, setOrderedVariantNames] = useState([]);
   useEffect(() => {
-    if (!orderedVariantNames.length) {
+    if (
+      !orderedVariantNames.length &&
+      variantNames.length &&
+      totalsByVariantData.length
+    ) {
       setOrderedVariantNames(findSortOrder(totalsByVariantData, variantNames));
     }
   }, [orderedVariantNames, totalsByVariantData, variantNames]);
@@ -105,13 +109,11 @@ export default function App() {
   const { colorMap: colors, randomizeColors } = useColorMap(variantNames);
 
   function shuffleVariantOrder() {
-    // const colorVariantPairs = shuffle(R.zip(colors, orderedVariantNames));
-    // const newColors = colorVariantPairs.map(([color, variant]) => color);
-    // const newVariants = colorVariantPairs.map(([color, variant]) => variant);
-    // setColors(newColors);
-    // setOrderedVariantNames(newVariants);
     setIsAnimationActive(false);
-    const newVariants = shuffle(orderedVariantNames);
+    const newVariants = [
+      ...shuffle(R.without(["Other"], orderedVariantNames)),
+      "Other", // Always put "Other" at the top
+    ];
     setOrderedVariantNames(newVariants);
     setTimeout(() => setIsAnimationActive(true), 0);
   }
@@ -438,6 +440,7 @@ function findSortOrder(
 ) {
   const rangeByVariant = {} as Record<VariantName, number>;
   for (const variantName of variantNames) {
+    if (variantName === "Other") continue;
     let min = Infinity;
     let max = 0;
     for (const row of values) {
@@ -446,8 +449,12 @@ function findSortOrder(
     }
     rangeByVariant[variantName] = max - min;
   }
-  return R.sortBy(
-    (variantName: VariantName) => -rangeByVariant[variantName],
-    Object.keys(R.omit(["date"], values[0])) as VariantName[]
-  );
+  return R.tap(console.log, [
+    ...R.sortBy(
+      (variantName: VariantName) => -rangeByVariant[variantName],
+      Object.keys(R.omit(["date", "Other"], values[0])) as VariantName[]
+    ),
+    // Always put "Other" at the top of the graph
+    "Other",
+  ]);
 }
